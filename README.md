@@ -22,4 +22,6 @@ When a request is made to GET `/api/hello`, a HTTP 200 response is delivered wit
 ## Repo Tooling
 Because multiple languages will be represented here, .gitignore will be in multiple folders.  In the short term, `npx gitignore <lang>` will be used to quickly create gitignores for each folder.
 
+## Servers
+Within the `servers/` directory, examples of a server which meets the API spec above will be given.  
 A dockerfile will be maintained in each folder, so that the example can be built and launched quickly.
