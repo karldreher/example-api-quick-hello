@@ -1,0 +1,51 @@
+name: Build Docker Images
+on: 
+  push:
+    branches:
+      - main
+  workflow_dispatch: 
+
+jobs:
+      createMatrix:
+        runs-on: ubuntu-22.04
+        steps:
+          - name: Checkout
+            uses: actions/checkout@v3
+    
+          - name: Generate Matrix
+            id: matrix
+            run: |
+              # Get a list of all directories that have a Dockerfile
+              paths=$((ls -d */Dockerfile) | sed 's/\/Dockerfile//')
+              # Add all paths to a json array using jq
+              values=$(jq -n --arg array "${paths}" '$array | split("\n")')
+              echo matrix=${values} >> $GITHUB_OUTPUT
+            working-directory: servers
+    
+        outputs:
+          matrix: ${{ steps.matrix.outputs.matrix }}
+    
+      docker-build:
+        runs-on: ubuntu-22.04
+        needs: [createMatrix]
+        strategy:
+          matrix:
+            paths: servers/${{ fromJson(needs.createMatrix.outputs.matrix) }}
+    
+        env:
+          MATRIX_PATH: ${{ matrix.paths }}
+    
+        steps:
+          - name: Checkout
+            uses: actions/checkout@v3
+          - name: Set up QEMU
+            uses: docker/setup-qemu-action@v2
+          - name: Set up Docker Buildx
+            uses: docker/setup-buildx-action@v2
+  
+          - name: Build and push
+            uses: docker/build-push-action@v4
+            with:
+              context: "{{defaultContext}}:servers/${{ matrix.MATRIX_PATH }}"
+              push: false
+              tags: "quick-hello:${{ matrix.MATRIX_PATH }}"
