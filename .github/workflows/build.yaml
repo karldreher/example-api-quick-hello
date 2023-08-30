@@ -57,14 +57,14 @@ jobs:
             uses: docker/build-push-action@v4
             with:
               context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
-              push: false
-              tags: "quick-hello:${{ env.MATRIX_PATH }}"
+              push: true
+              tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
           
           # Testing continues below for non-main workflow
           - name: Test Image
             if: github.event_name != 'push'
             run: | 
-              docker run -p 8000:8000 "quick-hello:${{ env.MATRIX_PATH }}"
+              docker run -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
               cd clients/curl
               ./request.sh
             
