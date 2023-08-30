@@ -64,7 +64,7 @@ jobs:
           - name: Test Image
             if: github.event_name != 'push'
             run: | 
-              docker run "quick-hello:${{ env.MATRIX_PATH }}"
+              docker run -p 8000:8000 "quick-hello:${{ env.MATRIX_PATH }}"
               cd clients/curl
               ./request.sh
             
