@@ -26,7 +26,9 @@ jobs:
         outputs:
           matrix: ${{ steps.matrix.outputs.matrix }}
     
-      docker-build:
+      # Build and push images, running on main only.
+      docker-build-push:
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         timeout-minutes: 5
         runs-on: ubuntu-22.04
         needs: [createMatrix]
@@ -41,13 +43,10 @@ jobs:
           - name: Checkout
             uses: actions/checkout@v3
 
-          # Build and push images, running on main only.
           - name: Set up Docker Buildx
-            if: github.event_name == 'push' && github.ref == 'refs/heads/main'
             uses: docker/setup-buildx-action@v2
 
           - name: Build and push
-            if: github.event_name == 'push' && github.ref == 'refs/heads/main'
             uses: docker/build-push-action@v4
             with:
               context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
@@ -55,15 +54,32 @@ jobs:
               tags: "quick-hello:${{ env.MATRIX_PATH }}"
 
           
-          # Test workflow, running on non-push events
+      # Test workflow, running on non-push events
+      docker-build:
+        if: github.event_name != 'push'
+        timeout-minutes: 5
+        runs-on: ubuntu-22.04
+        services:
+          registry:
+            image: registry:2
+            ports:
+              - 5000:5000
+
+        needs: [createMatrix]
+        strategy:
+          matrix:
+            paths: ${{ fromJson(needs.createMatrix.outputs.matrix) }}
+    
+        env:
+          MATRIX_PATH: ${{ matrix.paths }}
+
+        steps:
           - name: Set up Docker Buildx
-            if: github.event_name != 'push'
             uses: docker/setup-buildx-action@v2
             with:
               driver-opts: network=host
 
           - name: Build Image
-            if: github.event_name != 'push'
             uses: docker/build-push-action@v4
             with:
               context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
@@ -71,12 +87,10 @@ jobs:
               tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}        
 
           - name: Test Image
-            if: github.event_name != 'push'
             run: | 
               docker run -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
               cd clients/curl
               ./request.sh
             
           - name: Stop Running Containers 
-            if: github.event_name != 'push'
             run: docker stop $(docker ps -a -q)
