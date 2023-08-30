@@ -41,9 +41,11 @@ jobs:
           - name: Checkout
             uses: actions/checkout@v3
 
+          # Build and push images, running on main only.
           - name: Set up Docker Buildx
+            if: github.event_name == 'push' && github.ref == 'refs/heads/main'
             uses: docker/setup-buildx-action@v2
-  
+
           - name: Build and push
             if: github.event_name == 'push' && github.ref == 'refs/heads/main'
             uses: docker/build-push-action@v4
@@ -52,15 +54,22 @@ jobs:
               push: false
               tags: "quick-hello:${{ env.MATRIX_PATH }}"
 
+          
+          # Test workflow, running on non-push events
+          - name: Set up Docker Buildx
+            if: github.event_name != 'push'
+            uses: docker/setup-buildx-action@v2
+            with:
+              driver-opts: network=host
+
           - name: Build Image
             if: github.event_name != 'push'
             uses: docker/build-push-action@v4
             with:
               context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
               push: true
-              tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}
-          
-          # Testing continues below for non-main workflow
+              tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}        
+
           - name: Test Image
             if: github.event_name != 'push'
             run: | 
