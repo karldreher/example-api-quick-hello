@@ -88,7 +88,7 @@ jobs:
 
           - name: Test Image
             run: | 
-              docker run -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
+              docker run -d -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
               cd clients/curl
               ./request.sh
             
