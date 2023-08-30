@@ -27,6 +27,7 @@ jobs:
           matrix: ${{ steps.matrix.outputs.matrix }}
     
       docker-build:
+        timeout-minutes: 5
         runs-on: ubuntu-22.04
         needs: [createMatrix]
         strategy:
@@ -51,10 +52,22 @@ jobs:
               push: false
               tags: "quick-hello:${{ env.MATRIX_PATH }}"
 
-          - name: Build only
+          - name: Build Image
             if: github.event_name != 'push'
             uses: docker/build-push-action@v4
             with:
               context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
               push: false
               tags: "quick-hello:${{ env.MATRIX_PATH }}"
+          
+          # Testing continues below for non-main workflow
+          - name: Test Image
+            if: github.event_name != 'push'
+            run: | 
+              docker run "quick-hello:${{ env.MATRIX_PATH }}"
+              cd clients/curl
+              ./request.sh
+            
+          - name: Stop Running Containers 
+            if: github.event_name != 'push'
+            run: docker stop $(docker ps -a -q)
