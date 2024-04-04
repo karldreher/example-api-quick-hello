@@ -1,103 +1,104 @@
 name: Build Docker Images
-on: 
+on:
   push:
     branches:
       - main
-  workflow_dispatch: 
+  workflow_dispatch:
   pull_request:
 
 jobs:
-      createMatrix:
-        runs-on: ubuntu-22.04
-        steps:
-          - name: Checkout
-            uses: actions/checkout@v3
-    
-          - name: Generate Matrix
-            id: matrix
-            run: |
-              # Get a list of all directories that have a Dockerfile
-              paths=$((ls -d */Dockerfile) | sed 's/\/Dockerfile//')
-              # Add all paths to a json array using jq
-              values=$(jq -n --arg array "${paths}" '$array | split("\n")')
-              echo matrix=${values} >> $GITHUB_OUTPUT
-            working-directory: servers
-    
-        outputs:
-          matrix: ${{ steps.matrix.outputs.matrix }}
-    
-      # Build and push images, running on main only.
-      docker-build-push:
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        timeout-minutes: 5
-        runs-on: ubuntu-22.04
-        needs: [createMatrix]
-        strategy:
-          matrix:
-            paths: ${{ fromJson(needs.createMatrix.outputs.matrix) }}
-    
-        env:
-          MATRIX_PATH: ${{ matrix.paths }}
-    
-        steps:
-          - name: Checkout
-            uses: actions/checkout@v3
+  createMatrix:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-          - name: Set up Docker Buildx
-            uses: docker/setup-buildx-action@v2
+      - name: Generate Matrix
+        id: matrix
+        run: |
+          # Get a list of all directories that have a Dockerfile
+          paths=$((ls -d */Dockerfile) | sed 's/\/Dockerfile//')
+          # Add all paths to a json array using jq
+          values=$(jq -n --arg array "${paths}" '$array | split("\n")')
+          echo matrix=${values} >> $GITHUB_OUTPUT
+        working-directory: servers
 
-          - name: Build and push
-            uses: docker/build-push-action@v4
-            with:
-              context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
-              push: false
-              tags: "quick-hello:${{ env.MATRIX_PATH }}"
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
 
-          
-      # Test workflow, running on non-push events
-      docker-build:
-        if: github.event_name != 'push'
-        timeout-minutes: 5
-        runs-on: ubuntu-22.04
-        services:
-          registry:
-            image: registry:2
-            ports:
-              - 5000:5000
+  # Build and push images, running on main only.
+  docker-build-push:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 5
+    runs-on: ubuntu-22.04
+    needs: [createMatrix]
+    strategy:
+      matrix:
+        paths: ${{ fromJson(needs.createMatrix.outputs.matrix) }}
 
-        needs: [createMatrix]
-        strategy:
-          matrix:
-            paths: ${{ fromJson(needs.createMatrix.outputs.matrix) }}
-    
-        env:
-          MATRIX_PATH: ${{ matrix.paths }}
+    env:
+      MATRIX_PATH: ${{ matrix.paths }}
 
-        steps:
-          - name: Checkout
-            uses: actions/checkout@v3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-          - name: Set up Docker Buildx
-            uses: docker/setup-buildx-action@v2
-            with:
-              driver-opts: network=host
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-          - name: Build Image
-            uses: docker/build-push-action@v4
-            with:
-              context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
-              push: true
-              tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}        
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
+          push: false
+          tags: "quick-hello:${{ env.MATRIX_PATH }}"
 
-          - name: Test Image
-            run: | 
-              docker run -d -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
-              while ! curl -s http://localhost:8000/hello > /dev/null; do
-                echo "Waiting for server..."
-                sleep 5
-              done
-              cd clients/curl
-              ./request.sh
-            
-          - name: Stop Running Containers 
-            run: docker stop $(docker ps -a -q)
+  # Test workflow, running on non-push events
+  docker-build:
+    if: github.event_name != 'push'
+    timeout-minutes: 5
+    runs-on: ubuntu-22.04
+    services:
+      registry:
+        image: registry:2
+        ports:
+          # The 5000 port will become confusing later, but this is simply the reference to the local docker registry.
+          # The reason it was necessary to do this was to allow local (in-GHA) testing of these images.
+          - 5000:5000
+
+    needs: [createMatrix]
+    strategy:
+      matrix:
+        paths: ${{ fromJson(needs.createMatrix.outputs.matrix) }}
+
+    env:
+      MATRIX_PATH: ${{ matrix.paths }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: network=host
+
+      - name: Build Image
+        uses: docker/build-push-action@v4
+        with:
+          context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
+          push: true
+          tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}
+
+      - name: Test Image
+        run: |
+          docker run -d -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
+          while ! curl -s http://localhost:8000/hello > /dev/null; do
+            echo "Waiting for server..."
+            sleep 5
+          done
+          cd clients/curl
+          ./request.sh
+
+      - name: Stop Running Containers
+        run: docker stop $(docker ps -a -q)
