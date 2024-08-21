@@ -47,7 +47,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
           push: false
@@ -62,8 +62,6 @@ jobs:
       registry:
         image: registry:2
         ports:
-          # The 5000 port will become confusing later, but this is simply the reference to the local docker registry.
-          # The reason it was necessary to do this was to allow local (in-GHA) testing of these images.
           - 5000:5000
 
     needs: [createMatrix]
@@ -79,26 +77,40 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           driver-opts: network=host
 
       - name: Build Image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
           push: true
-          tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}
+          tags: localhost:5000/ci/quick-hello:${{ env.MATRIX_PATH }}
+
+      - name: Install wrk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wrk
 
       - name: Test Image
         run: |
-          docker run -d -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
+          docker run -d -p 8000:8000 "localhost:5000/ci/quick-hello:${{ env.MATRIX_PATH }}"
           while ! curl -s http://localhost:8000/hello > /dev/null; do
             echo "Waiting for server..."
             sleep 5
           done
-          cd clients/curl
-          ./request.sh
+          cd clients/wrk
+
+          echo "## Benchmark - ${{ env.MATRIX_PATH }}" > $GITHUB_STEP_SUMMARY
+          # Start markdown code fence
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          # Client test
+          ./request.sh >> $GITHUB_STEP_SUMMARY
+
+          # End markdown code fence
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Stop Running Containers
         run: docker stop $(docker ps -a -q)
