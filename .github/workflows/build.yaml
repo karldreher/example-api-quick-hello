@@ -100,7 +100,15 @@ jobs:
                 sleep 5
               done
               cd clients/wrk
+
+              # Start markdown code fence
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              
+              # Client test
               ./request.sh >> $GITHUB_STEP_SUMMARY
+
+              # End markdown code fence
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             
           - name: Stop Running Containers 
             run: docker stop $(docker ps -a -q)
