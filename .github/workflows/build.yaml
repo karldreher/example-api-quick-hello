@@ -102,7 +102,7 @@ jobs:
           done
           cd clients/wrk
 
-          echo "## Client Test - ${{ env.MATRIX_PATH }}" > $GITHUB_STEP_SUMMARY
+          echo "## Benchmark - ${{ env.MATRIX_PATH }}" > $GITHUB_STEP_SUMMARY
           # Start markdown code fence
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
