@@ -88,7 +88,10 @@ jobs:
               context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
               push: true
               tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}        
-
+          - name: Install wrk
+            run: |
+              apt-get update
+              apt-get install -y wrk
           - name: Test Image
             run: | 
               docker run -d -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
@@ -96,8 +99,8 @@ jobs:
                 echo "Waiting for server..."
                 sleep 5
               done
-              cd clients/curl
-              ./request.sh
+              cd clients/wrk
+              ./request.sh >> $GITHUB_STEP_SUMMARY
             
           - name: Stop Running Containers 
             run: docker stop $(docker ps -a -q)
