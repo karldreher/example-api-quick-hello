@@ -101,7 +101,8 @@ jobs:
             sleep 5
           done
           cd clients/wrk
-
+          
+          echo "## Client Test - ${{ env.MATRIX_PATH }} Server" > $GITHUB_STEP_SUMMARY
           # Start markdown code fence
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
