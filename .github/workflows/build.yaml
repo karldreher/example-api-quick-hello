@@ -86,7 +86,7 @@ jobs:
         with:
           context: "{{defaultContext}}:servers/${{ env.MATRIX_PATH }}"
           push: true
-          tags: localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}
+          tags: localhost:5000/ci/quick-hello:${{ env.MATRIX_PATH }}
 
       - name: Install wrk
         run: |
@@ -95,7 +95,7 @@ jobs:
 
       - name: Test Image
         run: |
-          docker run -d -p 8000:8000 "localhost:5000/name/quick-hello:${{ env.MATRIX_PATH }}"
+          docker run -d -p 8000:8000 "localhost:5000/ci/quick-hello:${{ env.MATRIX_PATH }}"
           while ! curl -s http://localhost:8000/hello > /dev/null; do
             echo "Waiting for server..."
             sleep 5
