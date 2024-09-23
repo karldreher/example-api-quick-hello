@@ -96,8 +96,10 @@ jobs:
       - name: Test Image
         run: |
           docker run -d -p 8000:8000 "localhost:5000/ci/quick-hello:${{ env.MATRIX_PATH }}"
-          while ! curl -s http://localhost:8000/hello > /dev/null; do
-            echo "Waiting for server..."
+          attempt=0
+          until curl -s http://localhost:8000/hello > /dev/null || [ $attempt -ge 3 ]; do
+            echo "Waiting for server... (attempt: $((attempt+1)))"
+            attempt=$((attempt+1))
             sleep 5
           done
           cd clients/wrk
